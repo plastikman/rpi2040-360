@@ -5,12 +5,17 @@
 // The goal is to capture the FPM's power-on handshake (the "blue" burst the
 // monitor showed) so the protocol can be decoded.
 //
+// Output goes to BOTH:
+//   - Serial  (USB-C CDC), and
+//   - Serial1 (hardware UART0, TX on GP0) at 115200 8N1 — wire a USB-serial
+//     adapter: adapter RX <- Zero GP0, adapter GND <- Zero GND, 3.3V logic.
+//
 // USE:
-//   1. Flash this. Power the Zero from its USB-C (which also powers the
-//      module via 3V3). Do NOT also feed the module's USB 5V to the 5V pad.
-//   2. Open serial at 115200.
-//   3. POWER-CYCLE by unplugging/replugging the USB-C (a plain RESET won't
-//      re-run the FPM's power-on sequence, since the module's 3V3 stays up).
+//   1. Flash this. Power the Zero (USB-C, or 5V pad if reading via the
+//      UART adapter). The module runs off the Zero's 3V3.
+//   2. Open serial at 115200 (USB-C COM port, or the adapter's COM port).
+//   3. POWER-CYCLE the Zero (cut its power fully) so the module's 3V3 drops
+//      and the FPM re-runs its power-on sequence. A plain RESET won't do it.
 //   4. After the ~4s capture, it prints the transition list on a loop.
 //      Copy the whole dump.
 //
@@ -58,16 +63,20 @@ void setup() {
   pixel.setPixelColor(0, pixel.Color(0, 0, 24));  // blue: done, dumping
   pixel.show();
 
-  Serial.begin(115200);
+  Serial.begin(115200);          // USB-C CDC
+  Serial1.begin(115200);         // hardware UART0, TX on GP0
   uint32_t w = millis();
   while (!Serial && (millis() - w) < 3000) {}
 }
 
 void loop() {
   Serial.printf("=== capture: %d transitions (t in us since boot) ===\n", n);
+  Serial1.printf("=== capture: %d transitions (t in us since boot) ===\n", n);
   for (int i = 0; i < n; i++) {
     Serial.printf("%lu\tCLK=%d\tDATA=%d\n", (unsigned long)evT[i], evClk[i], evData[i]);
+    Serial1.printf("%lu\tCLK=%d\tDATA=%d\n", (unsigned long)evT[i], evClk[i], evData[i]);
   }
   Serial.println("=== end ===");
+  Serial1.println("=== end ===");
   delay(10000);
 }
