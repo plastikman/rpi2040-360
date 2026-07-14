@@ -6,6 +6,9 @@ build/
 *.hex
 *.map
 
+# ...except the shipped, prebuilt firmware binary
+!firmware/*.uf2
+
 # Arduino IDE / arduino-cli
 .build/
 *.o
