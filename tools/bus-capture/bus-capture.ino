@@ -59,9 +59,9 @@ void setup() {
   pixel.begin();
   Serial.begin(115200);
   Serial1.begin(115200);
-  uint32_t w = millis();
-  while (!Serial && (millis() - w) < 2000) {}
-  Serial.println("bus-capture armed");
+  // Do NOT wait for USB serial — arm immediately so we catch the FPM's
+  // power-on burst on a shared power cycle. Read the dump via the UART
+  // adapter (Serial1 on GP0), whose COM port stays open across power cycles.
   Serial1.println("bus-capture armed");
 }
 
