@@ -1,0 +1,16 @@
+# Build artifacts
+build/
+*.uf2
+*.elf
+*.bin
+*.hex
+*.map
+
+# Arduino IDE / arduino-cli
+.build/
+*.o
+*.a
+
+# Editor / OS cruft
+.vscode/
+.DS_Store
