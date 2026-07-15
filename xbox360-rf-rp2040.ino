@@ -30,6 +30,7 @@ constexpr uint16_t DEBOUNCE_MS    = 30;
 constexpr uint16_t BOOT_WAIT_MS   = 3500;  // let the FPM boot before talking
 constexpr uint16_t CMD_GAP_MS     = 50;
 constexpr uint16_t SYNC_WINDOW_MS = 4000;  // searching/pairing window
+constexpr uint8_t  INIT_RETRIES   = 30;    // retry init until the FPM answers
 constexpr uint8_t  LVL            = 32;
 
 XboxRF rf(PIN_DATA, PIN_CLK);
@@ -61,14 +62,29 @@ void setup() {
 
   delay(BOOT_WAIT_MS);
 
-  // Mandatory Slim init, boot animation, then rest with player 1 lit.
-  bool a = rf.startModule();
-  delay(CMD_GAP_MS);
-  bool b = rf.bootAnimation();
-  delay(CMD_GAP_MS);
-  rf.ledPlayer1();
-  Serial.printf("init: startModule=%d bootAnimation=%d\n", a, b);
-  ledResult(a && b);
+  // Init with retry: the module isn't always ready at a fixed delay after
+  // power-up, and a single attempt that times out would leave the ring dark
+  // until a replug. Keep trying until the control-bus commands succeed.
+  bool inited = false;
+  for (uint8_t attempt = 0; attempt < INIT_RETRIES && !inited; attempt++) {
+    bool a = rf.startModule();
+    delay(CMD_GAP_MS);
+    bool b = rf.bootAnimation();
+    inited = a && b;
+    Serial.printf("init attempt %d: start=%d boot=%d\n", attempt + 1, a, b);
+    if (!inited) {           // brief red blink, then retry
+      led(LVL, 0, 0);
+      delay(400);
+      led(0, 0, 0);
+      delay(200);
+    }
+  }
+
+  if (inited) {
+    delay(CMD_GAP_MS);
+    rf.ledPlayer1();
+  }
+  ledResult(inited);
 }
 
 void loop() {
