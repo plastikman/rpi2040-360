@@ -114,11 +114,23 @@ engineering. Command table lives in [`XboxRF.cpp`](XboxRF.cpp).
 - [agarmash.com writeup](https://agarmash.com/posts/xbox-360-controller-receiver/) (phat background)
 - [tkkrlab wiki — XBOX 360 RF Module](https://tkkrlab.nl/wiki/XBOX_360_RF_Module) (phat)
 
-## Status — working
+## Status — working (controller pairs + registers input)
 
-The control bus works: on boot the firmware sends the Slim `start module`
-command then the ring-of-light **boot animation** (visible confirmation), and
-the sync command completes over the bus.
+Confirmed end-to-end: the module **enumerates on USB**, a controller **pairs**
+(RP2040 sync button → controller sync) and **registers input** in Windows
+`joy.cpl`. On boot the firmware sends the Slim `start module` command then the
+ring-of-light **boot animation** (visible confirmation); the sync command
+completes over the bus.
+
+**Windows driver:** the module reports `USB\VID_045E&PID_02A9`. Bind the stock
+driver by force-picking it: Device Manager → the device → Update driver →
+Browse → *Let me pick from a list* → Microsoft → **Xbox 360 Wireless Receiver
+for Windows** (accept the incompatibility warning). No `.inf` edit needed.
+
+**Known cosmetic gap:** the module's ring-of-light doesn't show the player-N
+quadrant. The RP2040 only drives the control bus and isn't part of the USB-side
+XInput player assignment, so it can't know which quadrant to light; there's no
+confirmed Slim "set quadrant" command either. Functionally irrelevant.
 
 Protocol follows [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF):
 module-clocked, **slow** clock (hundreds of Hz, not the phat's 250 kHz),
