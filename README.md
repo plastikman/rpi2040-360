@@ -51,8 +51,7 @@ working [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF).
 
 | Action | Result |
 |--------|--------|
-| Short press | Start controller binding (SYNC) |
-| Long press (≥1.5 s) | Toggle the wireless radio off/on |
+| Press | Start controller binding (SYNC) — ring sweeps, then settles on player 1 |
 
 ## Hardware
 

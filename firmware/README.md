@@ -13,7 +13,6 @@
 |--------|---------|
 | Solid green | Powered and running (shows immediately on power-up) |
 | Blue flash | Sync command sent OK |
-| Cyan flash | Wireless toggle sent OK |
 | Red flash | Control-bus timeout — FPM didn't respond |
 
 If you see **solid green**, the Zero is powered and the firmware is running —
