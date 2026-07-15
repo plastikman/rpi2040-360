@@ -1,19 +1,40 @@
 # xbox360-rf-rp2040
 
+> ## ⚠️ Status: DOES NOT WORK (with the Xbox 360 S "Boron" FPM)
+>
+> This project **does not currently work** with the Slim/S **Boron Front Panel
+> Module** it targets. After an extensive bring-up, the Boron's 2-wire control
+> bus **never produces a detectable clock** in response to the host, so no
+> command (start / boot animation / sync) ever completes — every transaction
+> times out. Both clock directions were tried (module-as-clock-master and
+> host-as-clock-master); the module responds to neither.
+>
+> **What's confirmed working/correct:** the RP2040-Zero side, the wiring, the
+> pinout (verified against the official BORON CONN `X819886-001` schematic),
+> power/ground, and the build toolchain. The blocker is purely the module's
+> undocumented control-bus behavior.
+>
+> **Why it's stuck:** there is **no published working reference for the Boron
+> FPM control bus.** The one "working Slim" project
+> ([ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF)) actually
+> drives a **9-pin phat-style module** (pins 5/6/7), not the 13-pin Boron FPM.
+>
+> **What it needs next: logic-analyzer capture of a *live* Xbox 360 S console's
+> SMC↔FPM traffic** to learn the real init/clock/framing. Without that ground
+> truth, further progress is guesswork. (Alternatively, a **9-pin phat/RF02
+> module** should work with this firmware, as USB enumerates on power alone.)
+>
+> Diagnostic firmwares used during bring-up live under [`tools/`](tools/).
+
+---
+
 Firmware to drive a salvaged **Xbox 360 S (Slim / "Boron") Front Panel
 Module** as a USB PC receiver for wireless Xbox 360 controllers, using a
 **Waveshare RP2040-Zero** in place of the console SMC.
 
 Inspired by the [Applied Carbon xboxrf mod](https://www.appliedcarbon.org/xboxrf.html)
 (which targets the *phat* RF module), re-implemented for the RP2040 with the
-[arduino-pico](https://github.com/earlephilhower/arduino-pico) core, and
-adapted to the Slim FPM's control bus.
-
-> **Slim, not phat.** Older writeups say Slim/S modules "aren't suitable"
-> because the control bus differs. That's outdated — the Boron FPM exposes
-> USB + 3.3V and its 2-wire bus was reverse-engineered in 2025
-> ([drtrinity](https://drtrinity.uk/blog/2025/05/12/reversing-the-rf-board-1)).
-> The bind/sync command is even identical to the phat's (`0000000100`).
+[arduino-pico](https://github.com/earlephilhower/arduino-pico) core.
 
 ## What it does
 
@@ -98,15 +119,23 @@ engineering. Command table lives in [`XboxRF.cpp`](XboxRF.cpp).
 - [agarmash.com writeup](https://agarmash.com/posts/xbox-360-controller-receiver/) (phat background)
 - [tkkrlab wiki — XBOX 360 RF Module](https://tkkrlab.nl/wiki/XBOX_360_RF_Module) (phat)
 
-## Status
+## Status — does not work; needs logic analysis
 
-Protocol reworked to match the working Slim implementation
-[ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF) after a long
-bring-up: the earlier phat-style assumptions (module clocks at 250 kHz, 10-bit
-sync) were wrong for the Boron — the Slim clock is slow and needs the
-`start module` init + an 11-bit sync frame. On boot the firmware plays the
-ring-of-light **boot animation**, which is the quick visual check that the bus
-is working. `sendData()` returns `false` on a clock-stall timeout.
+See the notice at the top. Summary of the bring-up:
+
+- Confirmed correct: RP2040-Zero, wiring, pinout (per `X819886-001`),
+  power/ground, toolchain.
+- The Boron FPM **never clocks** for us → all control-bus commands time out.
+- Tried both clock directions; the module responds to neither.
+- The current firmware follows the [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF)
+  protocol (module-clocked, slow clock, `start module` init `0b0000010010`,
+  11-bit sync), but ginokgx's module is a **9-pin phat-style** module, not this
+  13-pin Boron FPM — so it's not a guaranteed match, and it doesn't work here.
+- USB never enumerated either (no device, no connect tone).
+
+**Next step to unblock: a logic-analyzer capture of a live Xbox 360 S
+console's SMC↔FPM control-bus traffic** — the real init/clock/framing. That's
+the missing ground truth; everything else is guesswork without it.
 
 Diagnostic firmwares (bus-monitor, bus-capture, bus-health, smc-clock-test)
 live under [`tools/`](tools/).
