@@ -22,9 +22,16 @@ the PC. The RP2040 is **not** in the USB data path. It replaces the console
 SMC toward the FPM and only:
 
 - reads a **sync button**
-- drives the **power LED** and triggers **controller binding** over the FPM's
-  proprietary 2-wire bus (FPM is the clock master at ~250 kHz; 10-bit frame =
-  1 ACK bit + 9 command bits, MSB-first, sampled on the falling edge)
+- on power-on sends the mandatory Slim **"start module"** command + the
+  ring-of-light **boot animation** (visible confirmation the bus works)
+- triggers **controller binding** over the FPM's proprietary 2-wire bus
+
+The **module** generates the clock (a **slow** ~hundreds-of-Hz clock on the
+Slim, not the phat's ~250 kHz); the host pulls DATA low to start, sets each
+bit ~1 ms into the clock-low phase, MSB-first. The Slim needs a mandatory
+`0b0000010010` start command before LEDs/sync work, and its sync frame is
+**11 bits** (phat's `0b0000000100` + a trailing `1`). Protocol matches the
+working [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF).
 
 ### Button behaviour
 
@@ -93,14 +100,16 @@ engineering. Command table lives in [`XboxRF.cpp`](XboxRF.cpp).
 
 ## Status
 
-**Untested against hardware.** The transaction mechanics and the `SYNC`
-frame (`0000000100`) are solid; the LED / wireless-toggle frames are
-reconstructed from the blog's bit notation and need **logic-analyzer
-verification** — bit alignment and the `X` placeholder bits are unconfirmed.
-The RP2040's PIO makes it easy to capture the real bus for verification.
+Protocol reworked to match the working Slim implementation
+[ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF) after a long
+bring-up: the earlier phat-style assumptions (module clocks at 250 kHz, 10-bit
+sync) were wrong for the Boron — the Slim clock is slow and needs the
+`start module` init + an 11-bit sync frame. On boot the firmware plays the
+ring-of-light **boot animation**, which is the quick visual check that the bus
+is working. `sendData()` returns `false` on a clock-stall timeout.
 
-If a transaction times out, `XboxRF::sendCommand()` returns `false` (module
-unpowered, not booted, or bus miswired / missing pull-ups).
+Diagnostic firmwares (bus-monitor, bus-capture, bus-health, smc-clock-test)
+live under [`tools/`](tools/).
 
 ## Windows driver note
 

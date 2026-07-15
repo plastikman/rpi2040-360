@@ -1,92 +1,67 @@
 #include "XboxRF.h"
 
-// Command frames for the Xbox 360 S (Boron) FPM two-wire bus.
+// Command frames (MSB-first), from the working Slim implementation
+// ginokgx/xbox360slimRF (https://github.com/ginokgx/xbox360slimRF).
 //
-// Each frame is 10 bits MSB-first: bits[0] = ACK bit (0 = host->FPM),
-// bits[1..9] = the 9 command bits documented by drtrinity.
-//
-// drtrinity notation -> 9 command bits -> full 10-bit frame (ACK prefixed):
-//   Start binding    0000000100  (already 10-bit, ACK=0)   [VERIFIED]
-//   All LEDs off     010000000   -> {0, 010000000}         [reconstructed]
-//   Power LED on     01000010 X  -> {0, 01000010 0}        [reconstructed]
-//   Power LED off    01000100 X  -> {0, 01000100 0}        [reconstructed]
-//   Power LED blink  01000110 X  -> {0, 01000110 0}        [reconstructed]
-//   Exit error state 010010000   -> {0, 010010000}         [reconstructed]
-//   Wireless toggle  00000100 X  -> {0, 00000100 X}        [reconstructed]
-//
-// The [reconstructed] frames follow the blog's bit notation but the X-bit
-// meaning and exact alignment are unconfirmed — verify with a logic
-// analyzer before trusting them.
-
-static const uint8_t CMD_SYNC[10]          = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0};
-static const uint8_t CMD_ALL_LEDS_OFF[10]  = {0, 0, 1, 0, 0, 0, 0, 0, 0, 0};
-static const uint8_t CMD_PWR_LED_ON[10]    = {0, 0, 1, 0, 0, 0, 0, 1, 0, 0};
-static const uint8_t CMD_PWR_LED_OFF[10]   = {0, 0, 1, 0, 0, 0, 1, 0, 0, 0};
-static const uint8_t CMD_PWR_LED_BLINK[10] = {0, 0, 1, 0, 0, 0, 1, 1, 0, 0};
-static const uint8_t CMD_EXIT_ERROR[10]    = {0, 0, 1, 0, 0, 1, 0, 0, 0, 0};
-static const uint8_t CMD_WIRELESS_ON[10]   = {0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
-static const uint8_t CMD_WIRELESS_OFF[10]  = {0, 0, 0, 0, 0, 0, 1, 0, 0, 0};
+//   START (0b0000010010) — mandatory Slim "start module" init; without it
+//                          the LEDs/sync don't work.
+//   BOOT  (0b0010000101) — ring-of-light boot animation (= 0x085).
+//   SYNC  (0b00000001001) — phat sync 0b0000000100 + a trailing 1; 11 bits.
+//   OFF   (0b0010000000) — LEDs off.
+static const uint8_t CMD_START[10] = {0, 0, 0, 0, 0, 1, 0, 0, 1, 0};
+static const uint8_t CMD_BOOT[10]  = {0, 0, 1, 0, 0, 0, 0, 1, 0, 1};
+static const uint8_t CMD_SYNC[11]  = {0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1};
+static const uint8_t CMD_OFF[10]   = {0, 0, 1, 0, 0, 0, 0, 0, 0, 0};
 
 XboxRF::XboxRF(uint8_t dataPin, uint8_t clkPin)
     : _data(dataPin), _clk(clkPin) {}
 
 void XboxRF::begin() {
-  // Idle: both lines released to INPUT, held HIGH. Internal pull-ups are a
-  // backstop; a salvaged FPM needs external ~10k pull-ups on C_DATA/C_CLK
-  // (the console's 100k pull-ups live on the motherboard, not the module).
+  // Idle: both lines released, held high. External ~1k pull-ups recommended;
+  // the module (not this MCU) drives CLK.
   pinMode(_clk, INPUT_PULLUP);
   pinMode(_data, INPUT_PULLUP);
 }
 
-void XboxRF::releaseBus() {
+void XboxRF::releaseData() {
   digitalWrite(_data, HIGH);
   pinMode(_data, INPUT_PULLUP);
 }
 
-// Block until CLK reaches `level`, or until timeoutUs elapses.
-// Returns true on the edge, false on timeout.
-bool XboxRF::waitClock(bool level, uint32_t timeoutUs) {
+// Block until CLK differs from prevLevel (an edge), or timeout.
+bool XboxRF::waitClockChange(int prevLevel, uint32_t timeoutUs) {
   uint32_t start = micros();
-  int want = level ? HIGH : LOW;
-  while (digitalRead(_clk) != want) {
+  while (digitalRead(_clk) == prevLevel) {
     if (micros() - start > timeoutUs) return false;
   }
   return true;
 }
 
-bool XboxRF::sendCommand(const uint8_t bits[10]) {
-  // Request a transaction: pull DATA low while CLK is (idle) high. This also
-  // presents ACK bit 0 (host->FPM). The FPM then starts clocking at 250 kHz.
+bool XboxRF::sendData(const uint8_t* cmd, uint8_t nbits) {
+  // Start: pull DATA low while the (module-driven) clock idles high.
   pinMode(_data, OUTPUT);
   digitalWrite(_data, LOW);
 
-  for (int i = 0; i < 10; i++) {
-    // Set the bit up while CLK is high...
-    if (!waitClock(true, CLK_TIMEOUT_US)) {
-      releaseBus();
-      return false;
-    }
-    digitalWrite(_data, bits[i] ? HIGH : LOW);
+  int prev = digitalRead(_clk);  // usually HIGH at idle
+  for (uint8_t i = 0; i < nbits; i++) {
+    // Wait for the clock to fall...
+    if (!waitClockChange(prev, CLK_TIMEOUT_US)) { releaseData(); return false; }
+    prev = digitalRead(_clk);
 
-    // ...the FPM samples it on the falling edge (CLK goes low).
-    if (!waitClock(false, CLK_TIMEOUT_US)) {
-      releaseBus();
-      return false;
-    }
+    // ...settle into the low phase, then present the bit.
+    delayMicroseconds(1000);
+    digitalWrite(_data, cmd[i] ? HIGH : LOW);
+
+    // Wait for the clock to rise (module latches the bit).
+    if (!waitClockChange(prev, CLK_TIMEOUT_US)) { releaseData(); return false; }
+    prev = digitalRead(_clk);
   }
 
-  // End: both lines return high.
-  releaseBus();
+  releaseData();
   return true;
 }
 
-bool XboxRF::syncController() { return sendCommand(CMD_SYNC); }
-bool XboxRF::allLedsOff()     { return sendCommand(CMD_ALL_LEDS_OFF); }
-bool XboxRF::powerLedOn()     { return sendCommand(CMD_PWR_LED_ON); }
-bool XboxRF::powerLedOff()    { return sendCommand(CMD_PWR_LED_OFF); }
-bool XboxRF::powerLedBlink()  { return sendCommand(CMD_PWR_LED_BLINK); }
-bool XboxRF::exitErrorState() { return sendCommand(CMD_EXIT_ERROR); }
-
-bool XboxRF::wirelessToggle(bool on) {
-  return sendCommand(on ? CMD_WIRELESS_ON : CMD_WIRELESS_OFF);
-}
+bool XboxRF::startModule()    { return sendData(CMD_START, 10); }
+bool XboxRF::bootAnimation()  { return sendData(CMD_BOOT, 10); }
+bool XboxRF::syncController() { return sendData(CMD_SYNC, 11); }
+bool XboxRF::ledsOff()        { return sendData(CMD_OFF, 10); }
