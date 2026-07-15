@@ -18,7 +18,7 @@
 
 constexpr uint8_t PIN_DATA = 3;
 constexpr uint8_t PIN_CLK  = 4;
-constexpr uint8_t PIN_BTN  = 2;
+constexpr uint8_t PIN_BTN  = 5;  // moved off GP2
 constexpr uint8_t PIN_RGB  = 16;
 constexpr uint8_t LVL      = 24;
 
