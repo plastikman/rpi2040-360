@@ -31,4 +31,6 @@ arduino-cli lib install "Adafruit NeoPixel"
 arduino-cli compile --fqbn rp2040:rp2040:waveshare_rp2040_zero .
 ```
 
-> Untested on hardware — see the repo README for verification status.
+> Verified working on hardware: module enumerates over USB, controller pairs
+> and registers input, and the ring plays boot / sweep / player-1 / connect
+> animations. Power **must** go to FPM pin 8 (see the repo README / docs/wiring.md).
