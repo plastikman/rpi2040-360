@@ -1,30 +1,25 @@
 # xbox360-rf-rp2040
 
-> ## ⚠️ Status: DOES NOT WORK (with the Xbox 360 S "Boron" FPM)
+> ## ✅ Status: WORKING
 >
-> This project **does not currently work** with the Slim/S **Boron Front Panel
-> Module** it targets. After an extensive bring-up, the Boron's 2-wire control
-> bus **never produces a detectable clock** in response to the host, so no
-> command (start / boot animation / sync) ever completes — every transaction
-> times out. Both clock directions were tried (module-as-clock-master and
-> host-as-clock-master); the module responds to neither.
+> Drives the Xbox 360 S **Boron Front Panel Module** control bus (start module
+> → ring-of-light boot animation → controller sync) from an RP2040-Zero.
 >
-> **What's confirmed working/correct:** the RP2040-Zero side, the wiring, the
-> pinout (verified against the official BORON CONN `X819886-001` schematic),
-> power/ground, and the build toolchain. The blocker is purely the module's
-> undocumented control-bus behavior.
+> **Root cause of a very long bring-up: one mis-wired power pin.** 3.3V was
+> tapped from the wrong pad, so the module was never actually powered — it
+> never clocked, every command timed out, the bus lines sat at a mushy ~2.0V
+> (back-feed through the signal pins' clamp diodes), and USB never enumerated.
+> The moment 3.3V moved to the correct VCC pad, it worked with the existing
+> firmware. **If nothing responds, check that VCC is really on the module's
+> VCC net first — measure VCC→GND at the module, not just at your wire.**
 >
-> **Why it's stuck:** there is **no published working reference for the Boron
-> FPM control bus.** The one "working Slim" project
-> ([ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF)) actually
-> drives a **9-pin phat-style module** (pins 5/6/7), not the 13-pin Boron FPM.
+> **Wire from the on-board pad row** (between the ribbon connector and the sync
+> button), per drtrinity's Boron→Pico photo
+> ([blog post](https://drtrinity.uk/blog/2025/05/12/reversing-the-rf-board-1)):
+> **red = VCC (3.3V), black = GND, dark-blue = DATA → GP3, pink = CLK → GP4,
+> cyan = USB D−, orange = USB D+.** Keep 1k pull-ups on DATA/CLK.
 >
-> **What it needs next: logic-analyzer capture of a *live* Xbox 360 S console's
-> SMC↔FPM traffic** to learn the real init/clock/framing. Without that ground
-> truth, further progress is guesswork. (Alternatively, a **9-pin phat/RF02
-> module** should work with this firmware, as USB enumerates on power alone.)
->
-> Diagnostic firmwares used during bring-up live under [`tools/`](tools/).
+> Diagnostic firmwares from the bring-up live under [`tools/`](tools/).
 
 ---
 
@@ -119,23 +114,21 @@ engineering. Command table lives in [`XboxRF.cpp`](XboxRF.cpp).
 - [agarmash.com writeup](https://agarmash.com/posts/xbox-360-controller-receiver/) (phat background)
 - [tkkrlab wiki — XBOX 360 RF Module](https://tkkrlab.nl/wiki/XBOX_360_RF_Module) (phat)
 
-## Status — does not work; needs logic analysis
+## Status — working
 
-See the notice at the top. Summary of the bring-up:
+The control bus works: on boot the firmware sends the Slim `start module`
+command then the ring-of-light **boot animation** (visible confirmation), and
+the sync command completes over the bus.
 
-- Confirmed correct: RP2040-Zero, wiring, pinout (per `X819886-001`),
-  power/ground, toolchain.
-- The Boron FPM **never clocks** for us → all control-bus commands time out.
-- Tried both clock directions; the module responds to neither.
-- The current firmware follows the [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF)
-  protocol (module-clocked, slow clock, `start module` init `0b0000010010`,
-  11-bit sync), but ginokgx's module is a **9-pin phat-style** module, not this
-  13-pin Boron FPM — so it's not a guaranteed match, and it doesn't work here.
-- USB never enumerated either (no device, no connect tone).
+Protocol follows [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF):
+module-clocked, **slow** clock (hundreds of Hz, not the phat's 250 kHz),
+`start module` init `0b0000010010`, ring boot animation `0b0010000101`, 11-bit
+sync `0b00000001001`, data set ~1 ms into the clock-low phase, MSB-first.
 
-**Next step to unblock: a logic-analyzer capture of a live Xbox 360 S
-console's SMC↔FPM control-bus traffic** — the real init/clock/framing. That's
-the missing ground truth; everything else is guesswork without it.
+**The bug that cost the whole bring-up:** the 3.3V wire was on the wrong pad,
+so the module was never powered — it never clocked, commands timed out, the
+bus idled at a mushy ~2.0V, and USB wouldn't enumerate. Fixed by moving 3.3V
+to the correct VCC pad. Lesson: **verify VCC→GND at the module itself.**
 
 Diagnostic firmwares (bus-monitor, bus-capture, bus-health, smc-clock-test)
 live under [`tools/`](tools/).
