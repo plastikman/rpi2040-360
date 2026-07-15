@@ -122,9 +122,11 @@ ring-of-light **boot animation** (visible confirmation); the sync command
 completes over the bus.
 
 **Windows driver:** the module reports `USB\VID_045E&PID_02A9`. Bind the stock
-driver by force-picking it: Device Manager → the device → Update driver →
-Browse → *Let me pick from a list* → Microsoft → **Xbox 360 Wireless Receiver
-for Windows** (accept the incompatibility warning). No `.inf` edit needed.
+in-box driver by force-picking it — **no `.inf` edit, no signature disable.**
+Full steps in **[`docs/windows-driver.md`](docs/windows-driver.md)**; short
+version: Device Manager → the device → Update driver → Browse → *Let me pick
+from a list* → Microsoft → **Xbox 360 Wireless Receiver for Windows** (accept
+the incompatibility warning).
 
 **Ring-of-light:** boot plays the animation and rests on **player 1** lit; a
 sync press runs the **searching sweep**, then **all-four flash** (connected),
@@ -149,8 +151,8 @@ logic runs off **pin 8** — verify pin 8→GND ≈ 3.3V at the module.
 Diagnostic firmwares (bus-monitor, bus-capture, bus-health, smc-clock-test)
 live under [`tools/`](tools/).
 
-## Windows driver note
+## Windows driver
 
-The PC recognises the FPM via the official Xbox 360 wireless receiver driver
-with the `.inf` USB device IDs edited to match the module's VID/PID.
-(Out of scope for this firmware.)
+The receiver uses the **official in-box Xbox 360 Wireless Receiver driver** —
+force-picked onto the device (`VID_045E&PID_02A9`), no `.inf` editing or
+signature-enforcement changes required. Step-by-step: **[`docs/windows-driver.md`](docs/windows-driver.md)**.
