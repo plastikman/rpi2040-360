@@ -22,15 +22,25 @@ The six wires you actually connect:
 ```
    pin  signal        connect to
    ---  ------------  ----------------------------
-   12   V_3P3STBY     RP2040 3V3    ⚠ MUST be this pad — wrong pad = nothing
-                                     works (chip never powers/clocks)
+    8   FP_PWR        RP2040 3V3    ⚠ THIS is the 3.3V pin — the module's MAIN
+                                     power rail. NOT pin 12 (see warning below).
     9   GND1          RP2040 GND / common ground
     2   C_DATA        RP2040 GP3    (+1k pull-up to 3V3)
     3   C_CLK         RP2040 GP4    (+1k pull-up to 3V3)
     6   D+            PC USB D+ (green)
     5   D−            PC USB D− (white)
-   (every other pin: leave unconnected)
+   (every other pin — including pin 12 — leave unconnected)
 ```
+
+> ### ⚠️ Power goes on pin 8, NOT pin 12
+> This is the single mistake that cost the entire bring-up. The X819886
+> schematic labels **pin 12 = `V_3P3STBY`** (3.3V **standby**) and **pin 8 =
+> `FP_PWR`** — but standby power only feeds a tiny always-on domain (enough for
+> button sense and a mushy ~2.0V on the bus), **not** the SC14470's main logic.
+> Powering pin 12 leaves the chip half-alive: it never clocks, never enumerates
+> over USB, and the control bus reads ~2.0V. **Feed 3.3V to pin 8 (FP_PWR) —
+> the main rail — and the module comes fully alive.** Verify by measuring
+> **pin 8 → GND ≈ 3.3V** at the module.
 
 ### Reference: drtrinity's Boron → Pico tap points
 
@@ -59,11 +69,11 @@ From the official BORON CONN schematic. We use only 6 of the 17 pins.
 | **5** | **D−** | USB differential | → USB to PC |
 | **6** | **D+** | USB differential | → USB to PC |
 | 7 | FP_TEMP_N | temp sensor | skip |
-| 8 | FP_PWR (PWRSW_N) | power button out | skip |
+| **8** | **FP_PWR** | **main 3.3V power** | ← RP2040-Zero `3V3` pad |
 | **9** | **GND1** | ground | → GND |
 | 10 | ODD_EJECT | eject button out | skip |
 | **11** | **GND2** | ground | → GND |
-| **12** | **V_3P3STBY** | 3.3V power | ← RP2040-Zero `3V3` pad |
+| 12 | V_3P3STBY | 3.3V **standby** (does NOT power the logic) | **skip** — see warning above |
 | 13 | BINDSW_N | bind button out | skip (we sync over the bus) |
 | 14 | ME1 | mount / GND | GND (optional) |
 | 15 | ME2 | mount / GND | GND (optional) |
@@ -77,7 +87,7 @@ Note from schematic: `BORONFPMPORT_DX IS A USB DIFFERENTIAL PAIR` (pins 5/6).
 | RP2040-Zero | ↔ | FPM pin | Notes |
 |-------------|---|---------|-------|
 | `5V` pad    | ← | USB VBUS (5V, from the PC cable) | powers the Zero; 5V as **INPUT** |
-| `3V3` pad   | → | **12** V_3P3STBY | Zero's regulator powers the FPM |
+| `3V3` pad   | → | **8** FP_PWR (main 3.3V — NOT pin 12) | Zero's regulator powers the FPM |
 | `GND`       | ↔ | **9 / 11** (+ ME1–4) | common ground |
 | `GP3`       | ↔ | **2** C_DATA | + 10kΩ pull-up to 3V3 |
 | `GP4`       | ← | **3** C_CLK | + 10kΩ pull-up to 3V3 (FPM drives it) |
@@ -92,10 +102,9 @@ not on USB 5V).
 ### Pull-ups and decoupling
 
 - The console provides 100kΩ pull-ups on the bus lines *from the motherboard*.
-  A salvaged FPM has none, so add **10kΩ pull-ups on C_DATA and C_CLK to 3V3**.
-- The schematic puts a **100 µF bulk cap + 470 pF** on V_3P3STBY. Adding a
-  ~10–100 µF cap across the module's 3.3V/GND near the connector is good
-  practice for clean power.
+  A salvaged FPM has none, so add **1–10kΩ pull-ups on C_DATA and C_CLK to 3V3**.
+- A ~10–100 µF cap across the module's 3.3V (pin 8) / GND near the connector is
+  good practice for clean power.
 
 ## USB / power rules
 
@@ -107,7 +116,7 @@ not on USB 5V).
 ## Before powering on
 
 1. Confirm silkscreen: `3V3` on the Zero is the regulator **output**; feed it
-   to FPM pin 12 only. Never put 5V on pin 12.
+   to FPM **pin 8** (FP_PWR), **not** pin 12. Never put 5V on it.
 2. Double-check pins 5/6 (D−/D+) and 2/3 (C_DATA/C_CLK) against your actual
    board with a multimeter — pin numbering/orientation on a bare connector is
    easy to mirror.

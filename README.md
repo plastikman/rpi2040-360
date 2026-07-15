@@ -5,19 +5,17 @@
 > Drives the Xbox 360 S **Boron Front Panel Module** control bus (start module
 > → ring-of-light boot animation → controller sync) from an RP2040-Zero.
 >
-> **Root cause of a very long bring-up: one mis-wired power pin.** 3.3V was
-> tapped from the wrong pad, so the module was never actually powered — it
-> never clocked, every command timed out, the bus lines sat at a mushy ~2.0V
-> (back-feed through the signal pins' clamp diodes), and USB never enumerated.
-> The moment 3.3V moved to the correct VCC pad, it worked with the existing
-> firmware. **If nothing responds, check that VCC is really on the module's
-> VCC net first — measure VCC→GND at the module, not just at your wire.**
+> **Root cause of a very long bring-up: 3.3V on the wrong pin.** Power must go
+> to **pin 8 (`FP_PWR`)**, the module's main rail — **not pin 12
+> (`V_3P3STBY`)**, which the schematic labels "3.3V" but is only *standby*
+> power. Standby left the chip half-alive: it never clocked, every command
+> timed out, the bus sat at a mushy ~2.0V, and USB never enumerated. Move 3.3V
+> to **pin 8** and it works with the existing firmware. **If nothing responds,
+> confirm 3.3V is on pin 8 — measure pin 8 → GND ≈ 3.3V at the module.**
 >
-> **Wire from the on-board pad row** (between the ribbon connector and the sync
-> button), per drtrinity's Boron→Pico photo
-> ([blog post](https://drtrinity.uk/blog/2025/05/12/reversing-the-rf-board-1)):
-> **red = VCC (3.3V), black = GND, dark-blue = DATA → GP3, pink = CLK → GP4,
-> cyan = USB D−, orange = USB D+.** Keep 1k pull-ups on DATA/CLK.
+> Wiring (see [`docs/wiring.md`](docs/wiring.md)): **pin 8 = 3.3V, pin 9 = GND,
+> pin 2 = DATA → GP3, pin 3 = CLK → GP4, pin 6 = USB D+, pin 5 = USB D−.** Keep
+> 1k pull-ups on DATA/CLK.
 >
 > Diagnostic firmwares from the bring-up live under [`tools/`](tools/).
 
@@ -66,8 +64,9 @@ working [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF).
 
 Wiring, full FPM connector pinout, and power rules: see
 [`docs/wiring.md`](docs/wiring.md). Short version: the PC cable's 5V powers
-the Zero via its `5V` pad, the Zero's `3V3` pad powers the FPM (pin 12), the
-USB pair goes to FPM pins 5/6, and `GP3`/`GP4` are the C_DATA/C_CLK bus.
+the Zero via its `5V` pad, the Zero's `3V3` pad powers the FPM at **pin 8**
+(`FP_PWR` — the main rail, **not** pin 12 standby), the USB pair goes to FPM
+pins 5/6, and `GP3`/`GP4` are the C_DATA/C_CLK bus.
 
 ## Pin map
 
@@ -140,10 +139,12 @@ module-clocked, **slow** clock (hundreds of Hz, not the phat's 250 kHz),
 `start module` init `0b0000010010`, ring boot animation `0b0010000101`, 11-bit
 sync `0b00000001001`, data set ~1 ms into the clock-low phase, MSB-first.
 
-**The bug that cost the whole bring-up:** the 3.3V wire was on the wrong pad,
-so the module was never powered — it never clocked, commands timed out, the
-bus idled at a mushy ~2.0V, and USB wouldn't enumerate. Fixed by moving 3.3V
-to the correct VCC pad. Lesson: **verify VCC→GND at the module itself.**
+**The bug that cost the whole bring-up:** 3.3V was on **pin 12
+(`V_3P3STBY`, standby power)** instead of **pin 8 (`FP_PWR`, main power)**.
+Standby only half-powered the chip — it never clocked, commands timed out, the
+bus idled at a mushy ~2.0V, and USB wouldn't enumerate. Fixed by moving 3.3V to
+**pin 8**. Lesson: the schematic's "3.3V" pin (12) is *standby*; the module's
+logic runs off **pin 8** — verify pin 8→GND ≈ 3.3V at the module.
 
 Diagnostic firmwares (bus-monitor, bus-capture, bus-health, smc-clock-test)
 live under [`tools/`](tools/).
