@@ -26,10 +26,11 @@ constexpr uint8_t PIN_DATA   = 3;   // FPM pin 2  C_DATA
 constexpr uint8_t PIN_CLK    = 4;   // FPM pin 3  C_CLK (module drives it)
 constexpr uint8_t PIN_RGB    = 16;  // onboard WS2812
 
-constexpr uint16_t DEBOUNCE_MS  = 30;
-constexpr uint16_t BOOT_WAIT_MS = 3500;  // let the FPM boot before talking
-constexpr uint16_t CMD_GAP_MS   = 50;
-constexpr uint8_t  LVL          = 32;
+constexpr uint16_t DEBOUNCE_MS    = 30;
+constexpr uint16_t BOOT_WAIT_MS   = 3500;  // let the FPM boot before talking
+constexpr uint16_t CMD_GAP_MS     = 50;
+constexpr uint16_t SYNC_WINDOW_MS = 4000;  // searching/pairing window
+constexpr uint8_t  LVL            = 32;
 
 XboxRF rf(PIN_DATA, PIN_CLK);
 Adafruit_NeoPixel pixel(1, PIN_RGB, NEO_GRB + NEO_KHZ800);
@@ -60,10 +61,12 @@ void setup() {
 
   delay(BOOT_WAIT_MS);
 
-  // Mandatory Slim init, then the boot animation (watch the module's ring).
+  // Mandatory Slim init, boot animation, then rest with player 1 lit.
   bool a = rf.startModule();
   delay(CMD_GAP_MS);
   bool b = rf.bootAnimation();
+  delay(CMD_GAP_MS);
+  rf.ledPlayer1();
   Serial.printf("init: startModule=%d bootAnimation=%d\n", a, b);
   ledResult(a && b);
 }
@@ -82,7 +85,13 @@ void loop() {
     wasDown = false;
     if (now - downAt >= DEBOUNCE_MS) {
       Serial.println("sync");
+      led(0, 0, LVL);            // Zero LED blue while syncing
+      rf.sweep();                // ring shows the searching sweep
       bool ok = rf.syncController();
+      delay(SYNC_WINDOW_MS);     // pairing window (sweep runs)
+      rf.ledAllFlash();          // all-four flash = connected
+      delay(1200);
+      rf.ledPlayer1();           // settle back to player 1
       ledResult(ok);
     }
   }

@@ -33,8 +33,11 @@ public:
 
   // --- Named commands ---
   bool startModule();     // mandatory Slim power-on init  (0b0000010010)
-  bool bootAnimation();   // ring-of-light boot animation  (0b0010000101)
+  bool bootAnimation();   // ring-of-light boot animation  (0x085)
   bool syncController();  // begin controller binding, 11-bit
+  bool sweep();           // rotating "searching" ring animation (0x088)
+  bool ledPlayer1();      // light quadrant 1 / player 1 (0x0A1)
+  bool ledAllFlash();     // all four quadrants flash — sync confirm (0x0C0)
   bool ledsOff();
 
   // Slim clock is slow (hundreds of Hz); allow tens of ms per edge.

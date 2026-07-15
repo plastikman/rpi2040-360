@@ -127,10 +127,13 @@ driver by force-picking it: Device Manager → the device → Update driver →
 Browse → *Let me pick from a list* → Microsoft → **Xbox 360 Wireless Receiver
 for Windows** (accept the incompatibility warning). No `.inf` edit needed.
 
-**Known cosmetic gap:** the module's ring-of-light doesn't show the player-N
-quadrant. The RP2040 only drives the control bus and isn't part of the USB-side
-XInput player assignment, so it can't know which quadrant to light; there's no
-confirmed Slim "set quadrant" command either. Functionally irrelevant.
+**Ring-of-light:** boot plays the animation and rests on **player 1** lit; a
+sync press runs the **searching sweep**, then **all-four flash** (connected),
+then settles back to player 1. LED codes were found on-hardware with
+[`tools/led-explorer`](tools/led-explorer): `0x088` = sweep, `0x0A1` =
+quadrant 1, `0x0C0` = all-four flash. (The RP2040 isn't in the USB-side XInput
+player assignment, so it always shows **player 1** — correct for a single
+controller.)
 
 Protocol follows [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF):
 module-clocked, **slow** clock (hundreds of Hz, not the phat's 250 kHz),
