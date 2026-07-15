@@ -91,7 +91,7 @@ Note from schematic: `BORONFPMPORT_DX IS A USB DIFFERENTIAL PAIR` (pins 5/6).
 | `GND`       | ↔ | **9 / 11** (+ ME1–4) | common ground |
 | `GP3`       | ↔ | **2** C_DATA | + 10kΩ pull-up to 3V3 |
 | `GP4`       | ← | **3** C_CLK | + 10kΩ pull-up to 3V3 (FPM drives it) |
-| `GP2`       | ← | sync button → GND | internal pull-up in firmware |
+| `GP5`       | ← | sync button → GND | internal pull-up in firmware (moved off GP2) |
 
 ### USB routing
 

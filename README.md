@@ -72,7 +72,7 @@ pins 5/6, and `GP3`/`GP4` are the C_DATA/C_CLK bus.
 
 | RP2040-Zero GPIO | Function | FPM pin |
 |------------------|----------|---------|
-| `GP2` | Sync button (to GND, internal pull-up) | — |
+| `GP5` | Sync button (to GND, internal pull-up) | — |
 | `GP3` | C_DATA (+10k pull-up) | 2 |
 | `GP4` | C_CLK  (+10k pull-up) | 3 |
 

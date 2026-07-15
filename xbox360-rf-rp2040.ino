@@ -21,7 +21,7 @@
 #include <Adafruit_NeoPixel.h>
 #include "XboxRF.h"
 
-constexpr uint8_t PIN_BUTTON = 2;   // sync button to GND
+constexpr uint8_t PIN_BUTTON = 5;   // sync button to GND (moved off GP2)
 constexpr uint8_t PIN_DATA   = 3;   // FPM pin 2  C_DATA
 constexpr uint8_t PIN_CLK    = 4;   // FPM pin 3  C_CLK (module drives it)
 constexpr uint8_t PIN_RGB    = 16;  // onboard WS2812
