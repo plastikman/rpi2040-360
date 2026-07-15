@@ -7,6 +7,45 @@ straight to the PC** and never touch the RP2040. The RP2040 only drives the
 FPM's 2-wire control bus (power LED + controller binding) and reads a sync
 button.
 
+## Physical connector layout
+
+As seen on the board — **`■` is the square pad = pin 1** (the pin-1 marker).
+Top row 1–6, bottom row 13→7:
+
+```
+   ■1    2    3    4    5    6
+   13   12   11   10    9    8    7
+```
+
+The six wires you actually connect:
+
+```
+   pin  signal        connect to
+   ---  ------------  ----------------------------
+   12   V_3P3STBY     RP2040 3V3    ⚠ MUST be this pad — wrong pad = nothing
+                                     works (chip never powers/clocks)
+    9   GND1          RP2040 GND / common ground
+    2   C_DATA        RP2040 GP3    (+1k pull-up to 3V3)
+    3   C_CLK         RP2040 GP4    (+1k pull-up to 3V3)
+    6   D+            PC USB D+ (green)
+    5   D−            PC USB D− (white)
+   (every other pin: leave unconnected)
+```
+
+### Reference: drtrinity's Boron → Pico tap points
+
+The same signals can be tapped from the on-board pad row (between the ribbon
+connector and the sync button). This annotated photo maps them by colour:
+
+![Boron → Pico wiring](images/boron-pico-wiring.png)
+
+> red = VCC (3.3V), black = GND, dark-blue = BORONFPM_DATA, pink =
+> BORONFPM_CLK, cyan = USB D−, orange = USB D+.
+>
+> Image credit: **drtrinity**, *"Reversing the Xbox 360 Front Power Module:
+> The SMC Two-Wire Interface"* —
+> <https://drtrinity.uk/blog/2025/05/12/reversing-the-rf-board-1>
+
 ## Boron FPM connector pinout (X819886-001)
 
 From the official BORON CONN schematic. We use only 6 of the 17 pins.
