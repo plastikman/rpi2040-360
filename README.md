@@ -60,6 +60,7 @@ working [ginokgx/xbox360slimRF](https://github.com/ginokgx/xbox360slimRF).
 - 2× 10kΩ pull-up resistors (C_DATA, C_CLK)
 - Momentary pushbutton
 - USB cable (FPM → PC)
+- Printable enclosure: [`hardware/360-rf-board-case-v7.stl`](hardware/360-rf-board-case-v7.stl) (see [`hardware/`](hardware/))
 
 Wiring, full FPM connector pinout, and power rules: see
 [`docs/wiring.md`](docs/wiring.md). Short version: the PC cable's 5V powers
